@@ -1,0 +1,32 @@
+.DS_Store
+.idea
+.vscode
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm-cache/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# React Native
+apps/mobile/ios/Pods/
+apps/mobile/ios/build/
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+apps/mobile/android/local.properties
+apps/mobile/android/.idea/
+
+# Web
+apps/web/dist/
+
+# Firebase
+functions/lib/
+
+
