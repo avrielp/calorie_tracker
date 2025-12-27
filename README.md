@@ -164,11 +164,6 @@ The HealthKit pipeline is **wired** (background fetch → read metrics → write
 
 The Health reader implementation lives in `packages/app/src/state/health/iosHealth.native.ts`.
 
-To enable real values:
-
-- Complete the `react-native-health` setup
-- Implement daily queries for resting/active energy, distance, and exercise minutes.
-
 #### Google Sign-In (iOS) setup (required for login)
 
 This project uses `@react-native-google-signin/google-signin` + Firebase Auth.
@@ -186,6 +181,35 @@ This project uses `@react-native-google-signin/google-signin` + Firebase Auth.
    - Add a URL scheme equal to your **REVERSED_CLIENT_ID** (from GoogleService-Info.plist or the iOS OAuth client)
 
 If you skip this step, the app will build but Google sign-in will fail at runtime.
+
+#### iOS Google Sign-In short checklist (do these in order)
+
+- **1) Create Firebase + enable Google auth**
+  - Firebase Console → **Authentication** → **Sign-in method** → enable **Google**
+
+- **2) Get the Web Client ID**
+  - Google Cloud Console → **APIs & Services** → **Credentials**
+  - Find an **OAuth 2.0 Client ID** of type **Web application**
+  - Copy the value that looks like: `123...abc.apps.googleusercontent.com`
+  - Put it into:
+    - `config/env.local.json` → `GOOGLE_WEB_CLIENT_ID`
+    - `apps/web/.env.local` → `VITE_GOOGLE_WEB_CLIENT_ID`
+
+- **3) Create/register an iOS OAuth client**
+  - In the same **Credentials** screen, create (or locate) an **OAuth client ID** of type **iOS**
+  - Ensure its **Bundle ID** matches your Xcode bundle identifier for `apps/mobile` (default is `com.calorietracker`)
+
+- **4) Add the iOS URL scheme (REVERSED_CLIENT_ID)**
+  - Best path: Firebase Console → Project settings → add an **iOS app** → download **GoogleService-Info.plist**
+  - Open the plist and copy `REVERSED_CLIENT_ID`
+  - In Xcode:
+    - `apps/mobile/ios/CalorieTracker.xcodeproj` → Target → **Info** → **URL Types**
+    - Add a URL scheme equal to `REVERSED_CLIENT_ID`
+
+- **5) Run and test**
+  - `npm run functions:serve`
+  - `npm run web:dev` (web sign-in uses popup)
+  - `cd apps/mobile && npm run ios` (native sign-in uses the Google Sign-In native module)
 
 ---
 
@@ -240,11 +264,10 @@ Web/Android: health tracking is skipped; sync is still active.
 
 ---
 
-### 12) Next implementation steps (what’s intentionally minimal right now)
+### 12) Optional enhancements
 
-- **HealthKit**: implement real metric queries in `iosHealth.native.ts`
-- **AI review editing**: UI supports review + save/re-prompt; “edit item → manual form” can be added next
-- **AI photo on native**: add image picker + permissions flow
-- **Goal inspection graph**: currently minimal; add real cycle calculations + success/failure graph rendering
+- **AI review editing**: add “edit AI item → prefilled manual form”
+- **AI photo on native**: add a native image picker flow (Web already supports file picker)
+- **Goal inspection graph**: add cycle calculations + success/failure chart rendering
 
 

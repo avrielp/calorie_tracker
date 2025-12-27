@@ -5,6 +5,7 @@ import type { UserProfile } from '@calorie-tracker/core';
 import { getFirebaseAuth } from './firebaseApp';
 import { getOrCreateUserProfile } from './authApi';
 import { signInWithGoogle } from './googleSignIn';
+import { configureGoogleSignInOnce } from './configureGoogleSignIn';
 
 type AuthState = {
   isReady: boolean;
@@ -22,6 +23,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    // Ensure native Google Sign-In is configured before any login attempt.
+    configureGoogleSignInOnce();
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
