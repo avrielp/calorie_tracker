@@ -1,8 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, View, Text, StyleSheet, ScrollView, Pressable, Modal, FlatList, Platform } from 'react-native';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
-import { addDays, toYmd, type AiEstimateItem } from '@calorie-tracker/core';
-import { addExpenditureItem, listExpenditureItemsByDate, deleteRecord, TABLES } from '@calorie-tracker/db';
+import { addDays, fromYmd, toYmd, type AiEstimateItem } from '@calorie-tracker/core';
+import {
+  addExpenditureItem,
+  deleteRecord,
+  listExpenditureItemsByDate,
+  listExpenditureItemsByDateRange,
+  TABLES,
+} from '@calorie-tracker/db';
 import { useAuth } from '../../state/auth/AuthProvider';
 import { useSync } from '../../state/sync/SyncProvider';
 import { estimateFromPhoto, estimateFromText } from '../../state/ai/aiApi';
@@ -14,6 +20,11 @@ import { SectionCard } from '../components/SectionCard';
 
 type DateChoice = 'today' | 'yesterday' | 'custom';
 type InputType = 'manual' | 'ai_text' | 'ai_photo';
+type ItemsRangeChoice = 'today' | '7d' | 'custom';
+
+function isYmd(s: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
 
 function Segmented({
   items,
@@ -66,6 +77,10 @@ export function InputsScreen() {
 
   const [items, setItems] = useState<any[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [itemsRange, setItemsRange] = useState<ItemsRangeChoice>('today');
+  const [itemsStartYmd, setItemsStartYmd] = useState(toYmd(today));
+  const [itemsEndYmd, setItemsEndYmd] = useState(toYmd(today));
+  const [itemsError, setItemsError] = useState<string | null>(null);
 
   const [aiText, setAiText] = useState('');
   const [aiItems, setAiItems] = useState<AiEstimateItem[]>([]);
@@ -75,9 +90,26 @@ export function InputsScreen() {
   const refresh = async () => {
     if (!userId) return;
     setLoadingItems(true);
+    setItemsError(null);
     try {
-      devLog('[inputs] refresh start', { userId, dateYmd });
-      const rows = await listExpenditureItemsByDate({ database, userId, dateYmd });
+      const start = itemsStartYmd;
+      const end = itemsEndYmd;
+      if (!isYmd(start) || !isYmd(end)) {
+        setItemsError('Invalid date range (use YYYY-MM-DD).');
+        setItems([]);
+        return;
+      }
+      if (start > end) {
+        setItemsError('Range start must be <= end.');
+        setItems([]);
+        return;
+      }
+
+      devLog('[inputs] refresh start', { userId, itemsRange, start, end });
+      const rows =
+        start === end
+          ? await listExpenditureItemsByDate({ database, userId, dateYmd: end })
+          : await listExpenditureItemsByDateRange({ database, userId, startYmd: start, endYmd: end });
       setItems(rows);
       devLog('[inputs] refresh done', { count: rows.length });
     } finally {
@@ -86,10 +118,25 @@ export function InputsScreen() {
   };
 
   useEffect(() => {
-    // Auto-refresh when user/date changes so you don't need to click Refresh.
+    // Items list range is independent from the "add date" control.
+    const todayYmd = toYmd(today);
+    if (itemsRange === 'today') {
+      setItemsStartYmd(todayYmd);
+      setItemsEndYmd(todayYmd);
+    } else if (itemsRange === '7d') {
+      setItemsStartYmd(toYmd(addDays(fromYmd(todayYmd), -6)));
+      setItemsEndYmd(todayYmd);
+    } else if (itemsRange === 'custom') {
+      // Keep whatever user typed
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsRange]);
+
+  useEffect(() => {
+    // Auto-refresh when user/range changes (including custom edits).
     refresh().catch((e) => devWarn('[inputs] refresh failed', e));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, dateYmd]);
+  }, [userId, itemsRange, itemsStartYmd, itemsEndYmd]);
 
   const caloriesValidation = useMemo<
     | { valid: false; message: string }
@@ -230,28 +277,14 @@ export function InputsScreen() {
     requestSync('inputs:saveAiItems');
   };
 
+  const itemsTitle = useMemo(() => {
+    if (itemsRange === 'today') return 'Items for today';
+    if (itemsRange === '7d') return 'Items for 7 days';
+    return `Items for ${itemsStartYmd} → ${itemsEndYmd}`;
+  }, [itemsEndYmd, itemsRange, itemsStartYmd]);
+
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <SectionCard title="Date">
-        <Segmented
-          items={[
-            { key: 'today', label: 'Today' },
-            { key: 'yesterday', label: 'Yesterday' },
-            { key: 'custom', label: 'Custom' },
-          ]}
-          value={dateChoice}
-          onChange={(k) => setDateChoice(k as DateChoice)}
-        />
-        {dateChoice === 'custom' ? (
-          <TextField
-            label="Custom date (YYYY-MM-DD)"
-            value={customDateYmd}
-            onChangeText={setCustomDateYmd}
-            placeholder="2025-12-27"
-          />
-        ) : null}
-      </SectionCard>
-
       <SectionCard title="Input type">
         <Segmented
           items={[
@@ -266,6 +299,25 @@ export function InputsScreen() {
 
       {inputType === 'manual' ? (
         <SectionCard title="Add item">
+          <Text style={styles.muted}>Add inputs for date</Text>
+          <Segmented
+            items={[
+              { key: 'today', label: 'Today' },
+              { key: 'yesterday', label: 'Yesterday' },
+              { key: 'custom', label: 'Custom' },
+            ]}
+            value={dateChoice}
+            onChange={(k) => setDateChoice(k as DateChoice)}
+          />
+          {dateChoice === 'custom' ? (
+            <TextField
+              label="Custom date (YYYY-MM-DD)"
+              value={customDateYmd}
+              onChangeText={setCustomDateYmd}
+              placeholder="2025-12-27"
+            />
+          ) : null}
+
           <TextField label="Name" value={name} onChangeText={setName} placeholder="e.g. Chicken burrito" />
           <TextField
             label="Description (optional)"
@@ -284,6 +336,25 @@ export function InputsScreen() {
 
       {inputType === 'ai_text' ? (
         <SectionCard title="Describe what you ate">
+          <Text style={styles.muted}>Add inputs for date</Text>
+          <Segmented
+            items={[
+              { key: 'today', label: 'Today' },
+              { key: 'yesterday', label: 'Yesterday' },
+              { key: 'custom', label: 'Custom' },
+            ]}
+            value={dateChoice}
+            onChange={(k) => setDateChoice(k as DateChoice)}
+          />
+          {dateChoice === 'custom' ? (
+            <TextField
+              label="Custom date (YYYY-MM-DD)"
+              value={customDateYmd}
+              onChangeText={setCustomDateYmd}
+              placeholder="2025-12-27"
+            />
+          ) : null}
+
           <TextField
             label="Text"
             value={aiText}
@@ -302,6 +373,25 @@ export function InputsScreen() {
 
       {inputType === 'ai_photo' ? (
         <SectionCard title="AI Photo">
+          <Text style={styles.muted}>Add inputs for date</Text>
+          <Segmented
+            items={[
+              { key: 'today', label: 'Today' },
+              { key: 'yesterday', label: 'Yesterday' },
+              { key: 'custom', label: 'Custom' },
+            ]}
+            value={dateChoice}
+            onChange={(k) => setDateChoice(k as DateChoice)}
+          />
+          {dateChoice === 'custom' ? (
+            <TextField
+              label="Custom date (YYYY-MM-DD)"
+              value={customDateYmd}
+              onChangeText={setCustomDateYmd}
+              placeholder="2025-12-27"
+            />
+          ) : null}
+
           {aiError ? (
             <View style={styles.aiErrorBox}>
               <Text style={styles.aiErrorText}>{aiError}</Text>
@@ -314,7 +404,25 @@ export function InputsScreen() {
         </SectionCard>
       ) : null}
 
-      <SectionCard title={`Items for ${dateYmd}`}>
+      <SectionCard title={itemsTitle}>
+        <Segmented
+          items={[
+            { key: 'today', label: 'Today' },
+            { key: '7d', label: '7 days' },
+            { key: 'custom', label: 'Custom range' },
+          ]}
+          value={itemsRange}
+          onChange={(k) => {
+            setItemsError(null);
+            setItemsRange(k as ItemsRangeChoice);
+          }}
+        />
+        {itemsRange === 'custom' ? (
+          <View style={{ gap: 10, marginTop: 10 }}>
+            <TextField label="Start (YYYY-MM-DD)" value={itemsStartYmd} onChangeText={setItemsStartYmd} />
+            <TextField label="End (YYYY-MM-DD)" value={itemsEndYmd} onChangeText={setItemsEndYmd} />
+          </View>
+        ) : null}
         <PrimaryButton
           title={loadingItems ? 'Refreshing…' : 'Refresh'}
           onPress={async () => {
@@ -323,10 +431,12 @@ export function InputsScreen() {
             await refresh();
           }}
         />
+        {itemsError ? <Text style={styles.error}>{itemsError}</Text> : null}
         {items.length === 0 ? <Text style={styles.muted}>No items yet.</Text> : null}
         {items.map((it: any) => (
           <View key={it.id} style={styles.itemRow}>
             <View style={styles.itemLeft}>
+              {itemsRange === 'today' ? null : <Text style={styles.itemDate}>{it.dateYmd}</Text>}
               <Text style={styles.itemLabel}>{it.name}</Text>
               {it.description ? <Text style={styles.itemHint}>{it.description}</Text> : null}
             </View>
@@ -427,6 +537,7 @@ const styles = StyleSheet.create({
   },
   itemLeft: { flexShrink: 1, flexGrow: 1 },
   itemLabel: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  itemDate: { color: colors.muted, fontSize: 11, fontWeight: '800', marginBottom: 4 },
   itemHint: { color: colors.muted, fontSize: 12, marginTop: 2 },
   itemRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   itemCalories: { color: colors.text, fontSize: 16, fontWeight: '900' },

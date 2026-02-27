@@ -74,7 +74,7 @@ export async function loadRangeTrend(args: {
     const intake = intakeByDate.get(ymd) ?? 0;
     const net = burned - intake;
     const invertedNet = -net;
-    points.push({ x: new Date(cur.getTime()), ymd, burned, intake, net: net, y: invertedNet });
+    points.push({ x: new Date(cur.getTime()), ymd, burned, intake, net: invertedNet, y: invertedNet });
     cur = addDays(cur, 1);
   }
   console.log('points', points);

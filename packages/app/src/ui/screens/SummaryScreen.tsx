@@ -98,11 +98,10 @@ export function SummaryScreen() {
 
   // "Balance" (aka surplus/deficit) = intake - burned.
   // Negative balance = calories lost (good/green). Positive balance = calories gained (bad/red).
-  const invertedBalance = totalNet;
-  const totalAbs = Math.abs(Math.round(invertedBalance));
-  const totalColor = invertedBalance < 0 ? colors.success : invertedBalance > 0 ? colors.danger : colors.muted;
+  const totalAbs = Math.abs(Math.round(totalNet));
+  const totalColor = totalNet < 0 ? colors.success : totalNet > 0 ? colors.danger : colors.muted;
   const totalSemanticLabel =
-    invertedBalance < 0 ? `${totalAbs} Calories Lost` : invertedBalance > 0 ? `${totalAbs} Calories gained` : '0 Calories';
+    totalNet < 0 ? `${totalAbs} Calories Lost` : totalNet > 0 ? `${totalAbs} Calories gained` : '0 Calories';
 
   // Recompute whenever Summary gains focus (so Inputs changes reflect immediately).
   useFocusEffect(

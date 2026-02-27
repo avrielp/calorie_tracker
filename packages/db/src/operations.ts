@@ -16,6 +16,25 @@ export async function listExpenditureItemsByDate(args: {
     .fetch();
 }
 
+export async function listExpenditureItemsByDateRange(args: {
+  database: Database;
+  userId: string;
+  startYmd: string;
+  endYmd: string;
+}) {
+  const { database, userId, startYmd, endYmd } = args;
+  return database
+    .get(TABLES.calorie_expenditure_items)
+    .query(
+      Q.where('userId', userId),
+      Q.where('date', Q.gte(startYmd)),
+      Q.where('date', Q.lte(endYmd)),
+      Q.sortBy('date', Q.desc),
+      Q.sortBy('updated_at', Q.desc),
+    )
+    .fetch();
+}
+
 export async function upsertCaloriesTotalBurned(args: {
   database: Database;
   userId: string;
