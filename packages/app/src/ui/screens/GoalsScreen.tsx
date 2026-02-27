@@ -4,6 +4,7 @@ import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { toYmd, type GoalType, goalTotalCalories } from '@calorie-tracker/core';
 import { deleteRecord, listGoals, upsertGoal, TABLES } from '@calorie-tracker/db';
 import { useAuth } from '../../state/auth/AuthProvider';
+import { useSync } from '../../state/sync/SyncProvider';
 import { colors } from '../theme';
 import { SectionCard } from '../components/SectionCard';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -14,6 +15,7 @@ export function GoalsScreen() {
   const database = useDatabase();
   const { profile } = useAuth();
   const userId = profile?.userId ?? profile?.authUid ?? '';
+  const { requestSync } = useSync();
 
   const [goals, setGoals] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -72,11 +74,13 @@ export function GoalsScreen() {
     });
     setOpen(false);
     await refresh();
+    requestSync('goals:save');
   };
 
   const remove = async (id: string) => {
     await deleteRecord({ database, table: TABLES.goals, id });
     await refresh();
+    requestSync('goals:delete');
   };
 
   const goalTypeOptions = useMemo(() => ['daily', 'weekly', 'monthly', 'custom'] as GoalType[], []);

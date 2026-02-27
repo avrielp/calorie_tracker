@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, FlatList, Platform } from 'react-native';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { addDays, toYmd, type AiEstimateItem } from '@calorie-tracker/core';
 import { addExpenditureItem, listExpenditureItemsByDate, deleteRecord, TABLES } from '@calorie-tracker/db';
 import { useAuth } from '../../state/auth/AuthProvider';
+import { useSync } from '../../state/sync/SyncProvider';
 import { estimateFromPhoto, estimateFromText } from '../../state/ai/aiApi';
+import { devLog, devWarn } from '../../state/log';
 import { colors } from '../theme';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { TextField } from '../components/TextField';
@@ -45,6 +47,7 @@ export function InputsScreen() {
   const database = useDatabase();
   const { profile, getIdToken } = useAuth();
   const userId = profile?.userId ?? profile?.authUid ?? '';
+  const { requestSync } = useSync();
 
   const today = useMemo(() => new Date(), []);
   const [dateChoice, setDateChoice] = useState<DateChoice>('today');
@@ -73,17 +76,26 @@ export function InputsScreen() {
     if (!userId) return;
     setLoadingItems(true);
     try {
+      devLog('[inputs] refresh start', { userId, dateYmd });
       const rows = await listExpenditureItemsByDate({ database, userId, dateYmd });
       setItems(rows);
+      devLog('[inputs] refresh done', { count: rows.length });
     } finally {
       setLoadingItems(false);
     }
   };
 
+  useEffect(() => {
+    // Auto-refresh when user/date changes so you don't need to click Refresh.
+    refresh().catch((e) => devWarn('[inputs] refresh failed', e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, dateYmd]);
+
   const addManual = async () => {
     if (!userId) return;
     const cals = Number(calories);
     if (!name.trim() || !Number.isFinite(cals)) return;
+    devLog('[inputs] addManual', { dateYmd, name: name.trim(), calories: cals });
     await addExpenditureItem({
       database,
       userId,
@@ -95,11 +107,14 @@ export function InputsScreen() {
     setDescription('');
     setCalories('');
     await refresh();
+    // Debounced sync (1 minute) so many inputs don't spam the network.
+    requestSync('inputs:addManual');
   };
 
   const removeItem = async (id: string) => {
     await deleteRecord({ database, table: TABLES.calorie_expenditure_items, id });
     await refresh();
+    requestSync('inputs:deleteItem');
   };
 
   const runAiText = async () => {
@@ -168,6 +183,7 @@ export function InputsScreen() {
     setAiText('');
     setAiItems([]);
     await refresh();
+    requestSync('inputs:saveAiItems');
   };
 
   return (

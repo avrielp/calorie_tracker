@@ -5,7 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../state/auth/AuthProvider';
 import { DbProvider } from '../state/db/DbProvider';
-import { SyncController } from '../state/sync/SyncController';
+import { SyncProvider } from '../state/sync/SyncProvider';
 import { BackgroundController } from '../state/background/BackgroundController';
 import { LoginScreen } from '../ui/screens/LoginScreen';
 import { SummaryScreen } from '../ui/screens/SummaryScreen';
@@ -51,24 +51,25 @@ function AuthedApp() {
 
   return (
     <DbProvider>
-      <SyncController />
-      <BackgroundController />
-      <View style={styles.authedRoot}>
-        <View style={styles.authedTopBar}>
-          <Text style={styles.authedTopBarText}>Signed in</Text>
-          <Pressable onPress={() => signOut()} style={styles.signOutBtn}>
-            <Text style={styles.signOutBtnText}>Sign out</Text>
-          </Pressable>
+      <SyncProvider>
+        <BackgroundController />
+        <View style={styles.authedRoot}>
+          <View style={styles.authedTopBar}>
+            <Text style={styles.authedTopBarText}>Signed in</Text>
+            <Pressable onPress={() => signOut()} style={styles.signOutBtn}>
+              <Text style={styles.signOutBtnText}>Sign out</Text>
+            </Pressable>
+          </View>
+          <View style={{ flex: 1, minHeight: 0 }}>
+            <ErrorBoundary label="Navigation crashed">
+              <Stack.Navigator>
+                <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+                <Stack.Screen name="Settings" component={SettingsScreen} />
+              </Stack.Navigator>
+            </ErrorBoundary>
+          </View>
         </View>
-        <View style={{ flex: 1, minHeight: 0 }}>
-          <ErrorBoundary label="Navigation crashed">
-            <Stack.Navigator>
-              <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
-              <Stack.Screen name="Settings" component={SettingsScreen} />
-            </Stack.Navigator>
-          </ErrorBoundary>
-        </View>
-      </View>
+      </SyncProvider>
     </DbProvider>
   );
 }

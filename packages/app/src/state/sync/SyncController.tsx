@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { syncNow } from '@calorie-tracker/db';
 import { useAuth } from '../auth/AuthProvider';
+import { devLog, devWarn } from '../log';
 
 export function SyncController() {
   const database = useDatabase();
@@ -17,10 +18,11 @@ export function SyncController() {
       if (isRunningRef.current) return;
       isRunningRef.current = true;
       try {
+        devLog('[sync] start', { userId });
         await syncNow({ database, userId, getIdToken });
+        devLog('[sync] done', { userId });
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.warn('[sync] failed', e);
+        devWarn('[sync] failed', e);
       } finally {
         isRunningRef.current = false;
       }

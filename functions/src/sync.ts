@@ -139,13 +139,20 @@ export async function pushChanges(req: AuthedRequest, res: Response) {
       if (!row?.id) continue;
       const data = sanitizeIncomingRow(row);
       const docRef = ref.doc(String(row.id));
+      const createdAt =
+        typeof (data as any).lastUpdated === 'number' && Number.isFinite((data as any).lastUpdated)
+          ? Number((data as any).lastUpdated)
+          : now;
       batch.set(
         docRef,
         {
           ...data,
           userId,
           lastUpdated: now,
-          createdAt: now,
+          // Important: don't use push-time as "createdAt" — it causes the next pull to treat
+          // the record as "created" even though the client already has it (common warning).
+          // We approximate creation time using the client's `lastUpdated` (set on create).
+          createdAt,
           _deleted: false,
         },
         { merge: true },
