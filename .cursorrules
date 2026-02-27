@@ -4,4 +4,5 @@ You are a coding assistant working on this repository. Follow these rules:
 2) Add debug/info/error logs wherever applicable.
 3) Do not log security-related secrets or sensitive data unless in dev mode.
 4) Keep secure practices in mind by default (least privilege, no secrets in clients, validate auth).
+5) Remember: losing weight = good, adding weight = bad.
 
