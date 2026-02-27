@@ -27,6 +27,11 @@ export async function syncNowImpl({
 
   await synchronize({
     database,
+    // In some cases (e.g. local storage wiped/reset independently), client may be missing records
+    // that the server considers "updated since". This flag makes WatermelonDB treat such updates
+    // as expected and create missing records without scary warnings.
+    // Server must send all non-deleted records as "updated" when this is enabled.
+    sendCreatedAsUpdated: true,
     pullChanges: async ({ lastPulledAt: lpa }) => {
       const since = lpa ?? 0;
       const res = await fetch(

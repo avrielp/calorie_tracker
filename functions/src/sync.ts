@@ -78,11 +78,11 @@ export async function pullChanges(req: AuthedRequest, res: Response) {
       delete (row as any)._deleted;
       delete (row as any)._status;
       delete (row as any)._changed;
-      const createdAt = Number((row as any).createdAt ?? 0);
       delete (row as any).createdAt;
-
-      if (since === 0 || (Number.isFinite(createdAt) && createdAt > since)) changes[table].created.push(row);
-      else changes[table].updated.push(row);
+      // IMPORTANT: Our client uses WatermelonDB's `sendCreatedAsUpdated` flag. In this mode, server
+      // should send all non-deleted records as `updated` only. This avoids scary client warnings when
+      // a client is missing some records (e.g. local storage/DB reset independently of sync metadata).
+      changes[table].updated.push(row);
     });
   }
 
