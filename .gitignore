@@ -14,8 +14,10 @@ yarn-error.log*
 .env
 .env.*
 !.env.example
+env.local
 config/env.local.json
 functions/.env.local
+functions/env.local
 
 # React Native
 apps/mobile/ios/Pods/
@@ -28,5 +30,6 @@ apps/mobile/android/.idea/
 
 # Firebase
 functions/lib/
+functions/.secret.local
 
 

@@ -16,6 +16,8 @@ const AiResponseSchema = z.object({
   items: z.array(AiItemSchema),
 });
 
+const PUBLIC_AI_ERROR_MESSAGE = 'AI engine failed for an unexpected reason, please try again.';
+
 function getClient() {
   const key = GEMINI_API_KEY.value();
   if (!key) throw new Error('GEMINI_API_KEY not set');
@@ -48,8 +50,14 @@ export async function estimateFromText(req: AuthedRequest, res: Response) {
 
   log.info('[ai] text estimate', { authUid, userId: parsed.data.userId });
 
-  const genAI = getClient();
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  let model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>;
+  try {
+    const genAI = getClient();
+    model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  } catch (e: any) {
+    log.warn('[ai] text client init failed', { error: e?.message ?? String(e) });
+    return res.status(500).json({ error: PUBLIC_AI_ERROR_MESSAGE });
+  }
 
   const prompt = `
 You are a calorie estimation assistant.
@@ -72,13 +80,22 @@ User text:
 ${parsed.data.text}
 `.trim();
 
-  const result = await model.generateContent({
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    // Some SDK versions don't type this field; keep it as `any` while still sending it to Gemini.
-    generationConfig: { responseMimeType: 'application/json' } as any,
-  });
-
-  const raw = result.response.text();
+  let raw = '';
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      // Some SDK versions don't type this field; keep it as `any` while still sending it to Gemini.
+      generationConfig: { responseMimeType: 'application/json' } as any,
+    });
+    raw = result.response.text();
+  } catch (e: any) {
+    const msg = e?.message ?? String(e);
+    const reason = Array.isArray(e?.errorDetails)
+      ? e.errorDetails.find((d: any) => d?.reason)?.reason
+      : undefined;
+    log.warn('[ai] text generate failed', { status: e?.status, reason, error: msg });
+    return res.status(502).json({ error: PUBLIC_AI_ERROR_MESSAGE });
+  }
   try {
     const json = parseModelJson(raw);
     const out = AiResponseSchema.parse(json);
@@ -86,7 +103,7 @@ ${parsed.data.text}
     return res.json(out);
   } catch (e: any) {
     log.warn('[ai] text parse failed', { error: e?.message ?? String(e), raw: raw.slice(0, 800) });
-    return res.status(500).json({ error: 'Failed to parse model output' });
+    return res.status(500).json({ error: PUBLIC_AI_ERROR_MESSAGE });
   }
 }
 
@@ -103,8 +120,14 @@ export async function estimateFromPhoto(req: AuthedRequest, res: Response) {
 
   log.info('[ai] photo estimate', { authUid, userId: parsed.data.userId, mimeType: parsed.data.mimeType });
 
-  const genAI = getClient();
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  let model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>;
+  try {
+    const genAI = getClient();
+    model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  } catch (e: any) {
+    log.warn('[ai] photo client init failed', { error: e?.message ?? String(e) });
+    return res.status(500).json({ error: PUBLIC_AI_ERROR_MESSAGE });
+  }
 
   const prompt = `
 You are a calorie estimation assistant.
@@ -124,25 +147,34 @@ Rules:
 - "confidence" is optional and should be between 0 and 1.
 `.trim();
 
-  const result = await model.generateContent({
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: parsed.data.mimeType,
-              data: parsed.data.imageBase64,
+  let raw = '';
+  try {
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: parsed.data.mimeType,
+                data: parsed.data.imageBase64,
+              },
             },
-          },
-        ],
-      },
-    ],
-    generationConfig: { responseMimeType: 'application/json' } as any,
-  });
-
-  const raw = result.response.text();
+          ],
+        },
+      ],
+      generationConfig: { responseMimeType: 'application/json' } as any,
+    });
+    raw = result.response.text();
+  } catch (e: any) {
+    const msg = e?.message ?? String(e);
+    const reason = Array.isArray(e?.errorDetails)
+      ? e.errorDetails.find((d: any) => d?.reason)?.reason
+      : undefined;
+    log.warn('[ai] photo generate failed', { status: e?.status, reason, error: msg });
+    return res.status(502).json({ error: PUBLIC_AI_ERROR_MESSAGE });
+  }
   try {
     const json = parseModelJson(raw);
     const out = AiResponseSchema.parse(json);
@@ -150,6 +182,6 @@ Rules:
     return res.json(out);
   } catch (e: any) {
     log.warn('[ai] photo parse failed', { error: e?.message ?? String(e), raw: raw.slice(0, 800) });
-    return res.status(500).json({ error: 'Failed to parse model output' });
+    return res.status(500).json({ error: PUBLIC_AI_ERROR_MESSAGE });
   }
 }

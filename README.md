@@ -156,6 +156,15 @@ Functions expect these environment variables at runtime:
 
 > Why keep `GEMINI_API_KEY` server-only? The mobile app loads `config/env.local.json` into its JS bundle at runtime. If you put the Gemini key there, it can leak to clients. Keep it only in Functions secrets/env vars.
 
+#### 5.2.1 Gemini API key (how to generate)
+
+- **What it is**: a **Google Gemini API key** used only by Cloud Functions. It is **not related to Firestore** and not generated inside the Firebase console.
+- **Where to create it**: Google AI Studio → “Get API key”.
+  - Link: `https://aistudio.google.com/app/apikey`
+- **Then**: copy the key value into:
+  - **local emulators**: `functions/.secret.local` → `GEMINI_API_KEY=...`
+  - **cloud**: `firebase functions:secrets:set GEMINI_API_KEY`
+
 For **cloud deploy**, set Firebase Secrets:
 
 ```bash
@@ -163,23 +172,29 @@ firebase functions:secrets:set BACKEND_API_KEY
 firebase functions:secrets:set GEMINI_API_KEY
 ```
 
-For **local emulators**, you can pass them as environment variables when starting emulators:
+For **local emulators**, use `functions/.secret.local` (recommended) or pass env vars when starting emulators.
+
+**Recommended**: edit `functions/.secret.local` (already in `.gitignore`):
+
+```bash
+BACKEND_API_KEY=changeme
+GEMINI_API_KEY=changeme
+```
+
+Then start emulators from the repo root:
+
+```bash
+firebase emulators:start --only functions,firestore
+```
+
+**Alternative**: pass them as environment variables when starting emulators:
 
 ```bash
 cd functions
 BACKEND_API_KEY=changeme GEMINI_API_KEY=changeme firebase emulators:start --only functions,firestore
 ```
 
-You can also create a local file at `functions/.env.local` (not committed) and export it in your shell before running:
-
-```bash
-set -a
-source ./env.local
-set +a
-firebase emulators:start --only functions,firestore
-```
-
-Use `functions/env.local.example` as a template.
+Use `functions/env.local.example` as a template if you prefer exporting variables via your shell.
 
 The API is exported as `api` at:
 

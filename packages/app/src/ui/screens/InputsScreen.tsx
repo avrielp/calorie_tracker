@@ -291,14 +291,22 @@ export function InputsScreen() {
             placeholder="Example: 2 slices of pepperoni pizza and a can of soda"
             multiline
           />
-          {aiError ? <Text style={styles.error}>{aiError}</Text> : null}
+          {aiError ? (
+            <View style={styles.aiErrorBox}>
+              <Text style={styles.aiErrorText}>{aiError}</Text>
+            </View>
+          ) : null}
           <PrimaryButton title="Estimate with AI" onPress={() => runAiText()} />
         </SectionCard>
       ) : null}
 
       {inputType === 'ai_photo' ? (
         <SectionCard title="AI Photo">
-          {aiError ? <Text style={styles.error}>{aiError}</Text> : null}
+          {aiError ? (
+            <View style={styles.aiErrorBox}>
+              <Text style={styles.aiErrorText}>{aiError}</Text>
+            </View>
+          ) : null}
           <PrimaryButton title={Platform.OS === 'web' ? 'Choose photo and estimate' : 'Estimate from photo'} onPress={() => runAiPhoto()} />
           <Text style={styles.muted}>
             Web works with a file picker. Native requires adding an image picker + permissions; see README.
@@ -395,6 +403,17 @@ const styles = StyleSheet.create({
   muted: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   error: { color: colors.danger, fontSize: 13, fontWeight: '700' },
   validationText: { color: colors.warning, fontSize: 13, fontWeight: '800', marginTop: 8 },
+  aiErrorBox: {
+    borderWidth: 1,
+    borderColor: '#4A1B1B',
+    backgroundColor: '#1A0D0D',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  aiErrorText: { color: colors.danger, fontSize: 15, fontWeight: '900', lineHeight: 20 },
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

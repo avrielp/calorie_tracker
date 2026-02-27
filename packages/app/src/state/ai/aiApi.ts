@@ -19,8 +19,19 @@ export async function estimateFromText(args: {
     body: JSON.stringify({ userId: args.userId, text: args.text }),
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`ai/text failed: ${res.status} ${text}`);
+    let msg = `AI request failed (${res.status})`;
+    try {
+      const json = await res.json();
+      if (json && typeof json === 'object' && typeof (json as any).error === 'string') msg = String((json as any).error);
+      else msg = JSON.stringify(json);
+    } catch {
+      try {
+        msg = await res.text();
+      } catch {
+        // ignore
+      }
+    }
+    throw new Error(msg);
   }
   return res.json();
 }
@@ -49,8 +60,19 @@ export async function estimateFromPhoto(args: {
     }),
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`ai/photo failed: ${res.status} ${text}`);
+    let msg = `AI request failed (${res.status})`;
+    try {
+      const json = await res.json();
+      if (json && typeof json === 'object' && typeof (json as any).error === 'string') msg = String((json as any).error);
+      else msg = JSON.stringify(json);
+    } catch {
+      try {
+        msg = await res.text();
+      } catch {
+        // ignore
+      }
+    }
+    throw new Error(msg);
   }
   return res.json();
 }
