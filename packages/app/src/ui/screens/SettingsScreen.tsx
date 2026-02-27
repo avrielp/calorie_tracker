@@ -1,20 +1,23 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useAuth } from '../../state/auth/AuthProvider';
 import { colors } from '../theme';
 import { SectionCard } from '../components/SectionCard';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Row } from '../components/Row';
+import { AvatarCircle } from '../components/AvatarCircle';
 
 export function SettingsScreen() {
   const { profile, firebaseUser, signOut } = useAuth();
+  const name = profile?.name ?? firebaseUser?.displayName ?? 'User';
+  const photoURL = profile?.photoURL ?? firebaseUser?.photoURL ?? undefined;
 
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        {profile?.photoURL ? <Image source={{ uri: profile.photoURL }} style={styles.avatar} /> : null}
+        <AvatarCircle size={44} name={name} photoURL={photoURL} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{profile?.name ?? firebaseUser?.displayName ?? 'User'}</Text>
+          <Text style={styles.name}>{name}</Text>
           <Text style={styles.email}>{profile?.email ?? firebaseUser?.email ?? ''}</Text>
         </View>
       </View>
@@ -43,7 +46,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
   },
-  avatar: { width: 44, height: 44, borderRadius: 22 },
   name: { color: colors.text, fontSize: 18, fontWeight: '900' },
   email: { color: colors.muted, marginTop: 2 },
 });

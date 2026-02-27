@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { getFocusedRouteNameFromRoute, NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -27,18 +27,7 @@ const Tabs = createBottomTabNavigator();
 
 function MainTabs() {
   return (
-    <Tabs.Navigator
-      screenOptions={({ navigation }) => ({
-        headerRight: () => (
-          <ProfileButton
-            onPress={() => {
-              // Settings is on the parent Stack navigator
-              navigation.getParent()?.navigate('Settings' as never);
-            }}
-          />
-        ),
-      })}
-    >
+    <Tabs.Navigator screenOptions={{ headerShown: false }}>
       <Tabs.Screen name="Summary" component={SummaryScreen} />
       <Tabs.Screen name="Inputs" component={InputsScreen} />
       <Tabs.Screen name="Goals" component={GoalsScreen} />
@@ -66,7 +55,19 @@ function AuthedApp() {
         <View style={styles.authedRoot}>
           <ErrorBoundary label="Navigation crashed">
             <Stack.Navigator>
-              <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+              <Stack.Screen
+                name="MainTabs"
+                component={MainTabs}
+                options={({ route, navigation }) => {
+                  const focused = getFocusedRouteNameFromRoute(route) ?? 'Summary';
+                  const title = focused === 'Summary' || focused === 'Inputs' || focused === 'Goals' ? focused : 'App';
+                  return {
+                    headerShown: true,
+                    title,
+                    headerRight: () => <ProfileButton onPress={() => navigation.navigate('Settings' as never)} />,
+                  };
+                }}
+              />
               <Stack.Screen name="Settings" component={SettingsScreen} />
             </Stack.Navigator>
           </ErrorBoundary>
