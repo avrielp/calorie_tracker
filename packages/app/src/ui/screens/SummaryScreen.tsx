@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { Q } from '@nozbe/watermelondb';
 import { caloriesBurned, caloriesExpenditureSum, toYmd, addDays } from '@calorie-tracker/core';
@@ -40,33 +41,35 @@ export function SummaryScreen() {
   const [yesterdayTotals, setYesterdayTotals] = useState({ burned: 0, intake: 0 });
   const [last7, setLast7] = useState({ burned: 0, intake: 0 });
 
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    (async () => {
-      const [t, y] = await Promise.all([
-        loadDayTotals({ database, userId, dateYmd: todayYmd }),
-        loadDayTotals({ database, userId, dateYmd: yesterdayYmd }),
-      ]);
-      if (cancelled) return;
-      setTodayTotals(t);
-      setYesterdayTotals(y);
+  // Recompute whenever Summary gains focus (so Inputs changes reflect immediately).
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!userId) return;
+      let cancelled = false;
+      (async () => {
+        const [t, y] = await Promise.all([
+          loadDayTotals({ database, userId, dateYmd: todayYmd }),
+          loadDayTotals({ database, userId, dateYmd: yesterdayYmd }),
+        ]);
+        if (cancelled) return;
+        setTodayTotals(t);
+        setYesterdayTotals(y);
 
-      // last 7 days
-      const days = Array.from({ length: 7 }, (_, i) => toYmd(addDays(today, -i)));
-      let burned = 0;
-      let intake = 0;
-      for (const d of days) {
-        const v = await loadDayTotals({ database, userId, dateYmd: d });
-        burned += v.burned;
-        intake += v.intake;
-      }
-      if (!cancelled) setLast7({ burned, intake });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [database, today, todayYmd, userId, yesterdayYmd]);
+        const days = Array.from({ length: 7 }, (_, i) => toYmd(addDays(today, -i)));
+        let burned = 0;
+        let intake = 0;
+        for (const d of days) {
+          const v = await loadDayTotals({ database, userId, dateYmd: d });
+          burned += v.burned;
+          intake += v.intake;
+        }
+        if (!cancelled) setLast7({ burned, intake });
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [database, today, todayYmd, userId, yesterdayYmd]),
+  );
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>

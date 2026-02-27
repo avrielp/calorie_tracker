@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, FlatList, Platform } from 'react-native';
+import { Alert, View, Text, StyleSheet, ScrollView, Pressable, Modal, FlatList, Platform } from 'react-native';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { addDays, toYmd, type AiEstimateItem } from '@calorie-tracker/core';
 import { addExpenditureItem, listExpenditureItemsByDate, deleteRecord, TABLES } from '@calorie-tracker/db';
@@ -11,7 +11,6 @@ import { colors } from '../theme';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { TextField } from '../components/TextField';
 import { SectionCard } from '../components/SectionCard';
-import { Row } from '../components/Row';
 
 type DateChoice = 'today' | 'yesterday' | 'custom';
 type InputType = 'manual' | 'ai_text' | 'ai_photo';
@@ -47,7 +46,7 @@ export function InputsScreen() {
   const database = useDatabase();
   const { profile, getIdToken } = useAuth();
   const userId = profile?.userId ?? profile?.authUid ?? '';
-  const { requestSync } = useSync();
+  const { requestSync, syncNow } = useSync();
 
   const today = useMemo(() => new Date(), []);
   const [dateChoice, setDateChoice] = useState<DateChoice>('today');
@@ -140,6 +139,20 @@ export function InputsScreen() {
     await refresh();
     // Debounced sync (1 minute) so many inputs don't spam the network.
     requestSync('inputs:addManual');
+  };
+
+  const confirmDelete = async (itemName: string) => {
+    const message = `Delete "${itemName}"?`;
+    if (Platform.OS === 'web') {
+      const ok = Boolean((globalThis as any).confirm?.(message));
+      return ok;
+    }
+    return await new Promise<boolean>((resolve) => {
+      Alert.alert('Delete item', message, [
+        { text: 'No', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Yes, delete', style: 'destructive', onPress: () => resolve(true) },
+      ]);
+    });
   };
 
   const removeItem = async (id: string) => {
@@ -294,12 +307,35 @@ export function InputsScreen() {
       ) : null}
 
       <SectionCard title={`Items for ${dateYmd}`}>
-        <PrimaryButton title={loadingItems ? 'Refreshing…' : 'Refresh'} onPress={() => refresh()} />
+        <PrimaryButton
+          title={loadingItems ? 'Refreshing…' : 'Refresh'}
+          onPress={async () => {
+            devLog('[inputs] refresh pressed -> syncNow + refresh');
+            await syncNow('inputs:refresh');
+            await refresh();
+          }}
+        />
         {items.length === 0 ? <Text style={styles.muted}>No items yet.</Text> : null}
         {items.map((it: any) => (
-          <Pressable key={it.id} onLongPress={() => removeItem(it.id)}>
-            <Row label={it.name} value={it.calories} hint={it.description || 'Long-press to delete'} />
-          </Pressable>
+          <View key={it.id} style={styles.itemRow}>
+            <View style={styles.itemLeft}>
+              <Text style={styles.itemLabel}>{it.name}</Text>
+              {it.description ? <Text style={styles.itemHint}>{it.description}</Text> : null}
+            </View>
+            <View style={styles.itemRight}>
+              <Text style={styles.itemCalories}>{it.calories}</Text>
+              <Pressable
+                onPress={async () => {
+                  const ok = await confirmDelete(it.name);
+                  if (ok) await removeItem(it.id);
+                }}
+                style={styles.deleteBtn}
+                hitSlop={10}
+              >
+                <Text style={styles.deleteBtnText}>X</Text>
+              </Pressable>
+            </View>
+          </View>
         ))}
       </SectionCard>
 
@@ -359,6 +395,29 @@ const styles = StyleSheet.create({
   muted: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   error: { color: colors.danger, fontSize: 13, fontWeight: '700' },
   validationText: { color: colors.warning, fontSize: 13, fontWeight: '800', marginTop: 8 },
+  itemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    backgroundColor: '#0E1016',
+  },
+  itemLeft: { flexShrink: 1, flexGrow: 1 },
+  itemLabel: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  itemHint: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  itemRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  itemCalories: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  deleteBtn: {
+    backgroundColor: colors.danger,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  deleteBtnText: { color: '#0B0C10', fontWeight: '900', fontSize: 14 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   modalCard: {
     backgroundColor: colors.card,

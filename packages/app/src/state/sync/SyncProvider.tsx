@@ -6,6 +6,7 @@ import { devLog, devWarn } from '../log';
 
 type SyncCtxValue = {
   requestSync: (reason?: string) => void;
+  syncNow: (reason?: string) => Promise<void>;
 };
 
 const Ctx = createContext<SyncCtxValue | null>(null);
@@ -68,7 +69,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
   }, [runNow, userId]);
 
-  const value = useMemo(() => ({ requestSync }), [requestSync]);
+  const value = useMemo(() => ({ requestSync, syncNow: runNow }), [requestSync, runNow]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
