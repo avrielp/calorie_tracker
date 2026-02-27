@@ -17,6 +17,18 @@ function tableRef(db: admin.firestore.Firestore, userId: string, table: TableNam
   return db.collection('users').doc(userId).collection(table);
 }
 
+function sanitizeIncomingRow(row: any): Record<string, any> {
+  // WatermelonDB raw records may include internal fields - never persist or echo them back.
+  if (!row || typeof row !== 'object') return {};
+  const copy: Record<string, any> = { ...row };
+  delete copy.id;
+  delete copy._status;
+  delete copy._changed;
+  delete copy._deleted;
+  delete copy.createdAt;
+  return copy;
+}
+
 async function assertUserAccess(args: { db: admin.firestore.Firestore; authUid: string; userId: string }) {
   const { db, authUid, userId } = args;
   const mappingSnap = await db.collection('authUidToUserId').doc(authUid).get();
@@ -64,6 +76,8 @@ export async function pullChanges(req: AuthedRequest, res: Response) {
 
       const row = { ...data, id: doc.id };
       delete (row as any)._deleted;
+      delete (row as any)._status;
+      delete (row as any)._changed;
       const createdAt = Number((row as any).createdAt ?? 0);
       delete (row as any).createdAt;
 
@@ -123,7 +137,7 @@ export async function pushChanges(req: AuthedRequest, res: Response) {
     const ref = tableRef(db, userId, table);
     for (const row of delta.created ?? []) {
       if (!row?.id) continue;
-      const { id, ...data } = row;
+      const data = sanitizeIncomingRow(row);
       const docRef = ref.doc(String(row.id));
       batch.set(
         docRef,
@@ -140,7 +154,7 @@ export async function pushChanges(req: AuthedRequest, res: Response) {
 
     for (const row of delta.updated ?? []) {
       if (!row?.id) continue;
-      const { id, ...data } = row;
+      const data = sanitizeIncomingRow(row);
       const docRef = ref.doc(String(row.id));
       batch.set(
         docRef,
