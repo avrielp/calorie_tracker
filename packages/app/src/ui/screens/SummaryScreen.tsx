@@ -1,6 +1,5 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View, Text, Pressable, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet } from 'react-native';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { Q } from '@nozbe/watermelondb';
 import { caloriesBurned, caloriesExpenditureSum, toYmd, addDays } from '@calorie-tracker/core';
@@ -29,7 +28,6 @@ async function loadDayTotals(args: { database: any; userId: string; dateYmd: str
 }
 
 export function SummaryScreen() {
-  const navigation = useNavigation<any>();
   const database = useDatabase();
   const { profile } = useAuth();
   const userId = profile?.userId ?? profile?.authUid ?? '';
@@ -41,23 +39,6 @@ export function SummaryScreen() {
   const [todayTotals, setTodayTotals] = useState({ burned: 0, intake: 0 });
   const [yesterdayTotals, setYesterdayTotals] = useState({ burned: 0, intake: 0 });
   const [last7, setLast7] = useState({ burned: 0, intake: 0 });
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: 'Summary',
-      headerRight: () => (
-        <Pressable onPress={() => navigation.navigate('Settings')} style={styles.avatarBtn}>
-          {profile?.photoURL ? (
-            <Image source={{ uri: profile.photoURL }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarFallbackText}>{(profile?.name?.[0] ?? 'U').toUpperCase()}</Text>
-            </View>
-          )}
-        </Pressable>
-      ),
-    });
-  }, [navigation, profile?.name, profile?.photoURL]);
 
   useEffect(() => {
     if (!userId) return;
@@ -110,16 +91,6 @@ export function SummaryScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, gap: 12 },
-  avatarBtn: { paddingHorizontal: 12, paddingVertical: 6 },
-  avatar: { width: 30, height: 30, borderRadius: 15 },
-  avatarFallback: {
-    backgroundColor: '#1A2030',
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarFallbackText: { color: colors.text, fontWeight: '800' },
 });
 
 

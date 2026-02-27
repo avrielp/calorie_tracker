@@ -12,9 +12,10 @@ import { SummaryScreen } from '../ui/screens/SummaryScreen';
 import { InputsScreen } from '../ui/screens/InputsScreen';
 import { GoalsScreen } from '../ui/screens/GoalsScreen';
 import { SettingsScreen } from '../ui/screens/SettingsScreen';
-import { Platform, View, Text, StyleSheet, Pressable } from 'react-native';
+import { Platform, View, Text, StyleSheet } from 'react-native';
 import { colors } from '../ui/theme';
 import { ErrorBoundary } from '../ui/components/ErrorBoundary';
+import { ProfileButton } from '../ui/components/ProfileButton';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -26,7 +27,18 @@ const Tabs = createBottomTabNavigator();
 
 function MainTabs() {
   return (
-    <Tabs.Navigator>
+    <Tabs.Navigator
+      screenOptions={({ navigation }) => ({
+        headerRight: () => (
+          <ProfileButton
+            onPress={() => {
+              // Settings is on the parent Stack navigator
+              navigation.getParent()?.navigate('Settings' as never);
+            }}
+          />
+        ),
+      })}
+    >
       <Tabs.Screen name="Summary" component={SummaryScreen} />
       <Tabs.Screen name="Inputs" component={InputsScreen} />
       <Tabs.Screen name="Goals" component={GoalsScreen} />
@@ -35,8 +47,6 @@ function MainTabs() {
 }
 
 function AuthedApp() {
-  const { signOut } = useAuth();
-
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     // `react-native-screens` is a native optimization. On web it can cause instability.
@@ -54,20 +64,12 @@ function AuthedApp() {
       <SyncProvider>
         <BackgroundController />
         <View style={styles.authedRoot}>
-          <View style={styles.authedTopBar}>
-            <Text style={styles.authedTopBarText}>Signed in</Text>
-            <Pressable onPress={() => signOut()} style={styles.signOutBtn}>
-              <Text style={styles.signOutBtnText}>Sign out</Text>
-            </Pressable>
-          </View>
-          <View style={{ flex: 1, minHeight: 0 }}>
-            <ErrorBoundary label="Navigation crashed">
-              <Stack.Navigator>
-                <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
-                <Stack.Screen name="Settings" component={SettingsScreen} />
-              </Stack.Navigator>
-            </ErrorBoundary>
-          </View>
+          <ErrorBoundary label="Navigation crashed">
+            <Stack.Navigator>
+              <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+            </Stack.Navigator>
+          </ErrorBoundary>
         </View>
       </SyncProvider>
     </DbProvider>
@@ -107,26 +109,6 @@ const styles = StyleSheet.create({
   loadingRoot: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   loadingText: { color: colors.text, fontSize: 16, fontWeight: '700' },
   authedRoot: { flex: 1, backgroundColor: colors.bg },
-  authedTopBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.card,
-  },
-  authedTopBarText: { color: colors.text, fontWeight: '900' },
-  signOutBtn: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#0E1016',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  signOutBtnText: { color: colors.text, fontWeight: '800' },
 });
 
 

@@ -63,6 +63,7 @@ export function InputsScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [calories, setCalories] = useState('');
+  const [addAttempted, setAddAttempted] = useState(false);
 
   const [items, setItems] = useState<any[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -91,21 +92,51 @@ export function InputsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, dateYmd]);
 
+  const caloriesValidation = useMemo<
+    | { valid: false; message: string }
+    | { valid: true; calories: number }
+  >(() => {
+    const raw = calories.trim();
+    if (!raw) return { valid: false, message: 'Calories is required.' };
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return { valid: false, message: 'Calories must be a number.' };
+    if (!Number.isInteger(n)) return { valid: false, message: 'Calories must be a whole number.' };
+    return { valid: true, calories: n };
+  }, [calories]);
+
+  const canAddManual = !!userId && !!name.trim() && caloriesValidation.valid;
+
+  const onChangeCalories = (v: string) => {
+    setCalories(v);
+    if (!addAttempted) return;
+    const raw = v.trim();
+    const n = Number(raw);
+    const isValid = !!raw && Number.isFinite(n) && Number.isInteger(n);
+    if (isValid) setAddAttempted(false);
+  };
+
   const addManual = async () => {
     if (!userId) return;
-    const cals = Number(calories);
-    if (!name.trim() || !Number.isFinite(cals)) return;
-    devLog('[inputs] addManual', { dateYmd, name: name.trim(), calories: cals });
+    if (!name.trim() || !caloriesValidation.valid) {
+      setAddAttempted(true);
+      return;
+    }
+    devLog('[inputs] addManual', { dateYmd, name: name.trim(), calories: caloriesValidation.calories });
     await addExpenditureItem({
       database,
       userId,
       dateYmd,
-      item: { name: name.trim(), description: description.trim() || undefined, calories: cals },
+      item: {
+        name: name.trim(),
+        description: description.trim() || undefined,
+        calories: caloriesValidation.calories,
+      },
       lastUpdated: Date.now(),
     });
     setName('');
     setDescription('');
     setCalories('');
+    setAddAttempted(false);
     await refresh();
     // Debounced sync (1 minute) so many inputs don't spam the network.
     requestSync('inputs:addManual');
@@ -230,8 +261,11 @@ export function InputsScreen() {
             placeholder="e.g. Large, with rice + beans"
             multiline
           />
-          <TextField label="Calories" value={calories} onChangeText={setCalories} keyboardType="numeric" />
-          <PrimaryButton title="Add" onPress={() => addManual()} />
+          <TextField label="Calories" value={calories} onChangeText={onChangeCalories} keyboardType="numeric" />
+          <PrimaryButton title="Add" onPress={() => addManual()} disabled={!canAddManual} />
+          {addAttempted && !caloriesValidation.valid ? (
+            <Text style={styles.validationText}>{caloriesValidation.message}</Text>
+          ) : null}
         </SectionCard>
       ) : null}
 
@@ -324,6 +358,7 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: colors.text },
   muted: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   error: { color: colors.danger, fontSize: 13, fontWeight: '700' },
+  validationText: { color: colors.warning, fontSize: 13, fontWeight: '800', marginTop: 8 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   modalCard: {
     backgroundColor: colors.card,
