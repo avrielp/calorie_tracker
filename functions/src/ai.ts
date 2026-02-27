@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 import { log } from './logger';
 import type { AuthedRequest } from './middleware';
+import { GEMINI_API_KEY } from './secrets';
 
 const AiItemSchema = z.object({
   name: z.string().min(1),
@@ -16,7 +17,7 @@ const AiResponseSchema = z.object({
 });
 
 function getClient() {
-  const key = process.env.GEMINI_API_KEY;
+  const key = GEMINI_API_KEY.value();
   if (!key) throw new Error('GEMINI_API_KEY not set');
   return new GoogleGenerativeAI(key);
 }

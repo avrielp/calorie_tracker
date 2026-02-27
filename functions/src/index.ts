@@ -7,6 +7,7 @@ import { requireApiKey, requireFirebaseAuth } from './middleware';
 import { getOrCreateProfile } from './profile';
 import { pullChanges, pushChanges } from './sync';
 import { estimateFromPhoto, estimateFromText } from './ai';
+import { BACKEND_API_KEY, GEMINI_API_KEY } from './secrets';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -31,6 +32,6 @@ app.use((err: any, _req: any, res: any, _next: any) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-export const api = onRequest({ region: 'us-central1' }, app);
+export const api = onRequest({ region: 'us-central1', secrets: [BACKEND_API_KEY, GEMINI_API_KEY] }, app);
 
 

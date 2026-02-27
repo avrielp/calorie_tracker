@@ -1,9 +1,10 @@
 import type { Request, Response, NextFunction } from 'express';
 import admin from 'firebase-admin';
 import { log } from './logger';
+import { BACKEND_API_KEY } from './secrets';
 
 export function requireApiKey(req: Request, res: Response, next: NextFunction) {
-  const expected = process.env.BACKEND_API_KEY;
+  const expected = BACKEND_API_KEY.value();
   if (!expected) {
     log.warn('[auth] BACKEND_API_KEY not set; rejecting');
     return res.status(500).json({ error: 'Server misconfigured: BACKEND_API_KEY not set' });

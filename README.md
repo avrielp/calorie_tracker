@@ -17,7 +17,7 @@ Cross‑platform app (iOS / Android / Web) that calculates a daily caloric surpl
 - **Sync**: The app calls Cloud Functions `pullChanges` / `pushChanges` to sync WatermelonDB across devices (Firestore is the backend store).
 - **Auth**: Firebase Google sign-in. After login, the client calls `GET /profile/me` which creates/returns a **UUID `userId`** stored in Firestore and used to scope all DB rows and sync routes.
 - **Background tasks** (mobile): `react-native-background-fetch` runs every ~15 minutes and:
-  - iOS: reads HealthKit metrics (currently stubbed, see below) and populates last 90 days if empty
+  - iOS: reads HealthKit metrics (best-effort; returns zeros if unavailable/unauthorized) and populates last 90 days if empty
   - all platforms: triggers a sync
 
 ---
@@ -25,7 +25,7 @@ Cross‑platform app (iOS / Android / Web) that calculates a daily caloric surpl
 ### 1) Prerequisites
 
 - Node.js **20+**
-- Yarn (recommended) or npm
+- npm (recommended) or Yarn
 - **iOS**: Xcode + CocoaPods
 - **Android**: Android Studio + SDKs
 - Firebase CLI: `npm i -g firebase-tools`
@@ -42,7 +42,7 @@ npm install
 
 ---
 
-### 3) Firebase setup (required)
+### 3) Firebase setup (required, from zero)
 
 In the Firebase console:
 
@@ -59,9 +59,21 @@ You’ll need your Firebase web config values:
 - `FIREBASE_MESSAGING_SENDER_ID`
 - `FIREBASE_APP_ID`
 
+Also:
+
+- Create (or locate) a **Google OAuth Web Client ID** (for native Google sign-in): `GOOGLE_WEB_CLIENT_ID`
+
+> Web sign-in (Vite) uses Firebase popup. iOS sign-in uses the native Google Sign-In module but still needs the **Web Client ID**.
+
 ---
 
 ### 4) Runtime configuration (local dev)
+
+This repo intentionally uses **different config files per runtime**:
+
+- **Mobile (iOS/Android)**: reads `config/env.local.json` at runtime (not committed)
+- **Web (Vite)**: reads `apps/web/.env.local` at dev/build time (not committed)
+- **Functions**: reads secrets via Firebase Secret Manager in cloud, or environment variables when running emulators
 
 #### Mobile (React Native)
 
@@ -91,25 +103,59 @@ VITE_FIREBASE_APP_ID=changeme
 
 ---
 
-### 5) Cloud Functions (API + Sync + AI)
+### 5) Backend (Cloud Functions) — local emulator + cloud deploy
 
-#### Env vars / secrets
+#### 5.1 Link the Firebase CLI to your project
+
+From repo root:
+
+```bash
+firebase login
+firebase use --add
+```
+
+Pick your Firebase project. This makes the emulator and deploy commands know which `PROJECT_ID` you’re using.
+
+#### 5.1.1 Local emulator vs deployed backend (how the apps choose)
+
+- **The apps use whatever you set as `BACKEND_BASE_URL`** (mobile) / `VITE_BACKEND_BASE_URL` (web).
+- For **local dev**, point it at the emulator:
+  - `http://localhost:5001/<PROJECT_ID>/us-central1/api`
+- For **cloud**, point it at your deployed Function URL (shown in `firebase deploy` output).
+
+#### 5.2 Secrets (required)
 
 Functions expect these environment variables at runtime:
 
-- `BACKEND_API_KEY`: required for all API calls (`x-api-key`)
-- `GEMINI_API_KEY`: required for AI endpoints (`/ai/text`, `/ai/photo`)
+- `BACKEND_API_KEY`: required for all API calls (`x-api-key`) — **client + server must match**
+- `GEMINI_API_KEY`: required for AI endpoints (`/ai/text`, `/ai/photo`) — **server-only**
 
-For local emulators, run:
+For **cloud deploy**, set Firebase Secrets:
+
+```bash
+firebase functions:secrets:set BACKEND_API_KEY
+firebase functions:secrets:set GEMINI_API_KEY
+```
+
+For **local emulators**, you can pass them as environment variables when starting emulators:
 
 ```bash
 cd functions
-BACKEND_API_KEY=changeme GEMINI_API_KEY=changeme firebase emulators:start --only functions
+BACKEND_API_KEY=changeme GEMINI_API_KEY=changeme firebase emulators:start --only functions,firestore
 ```
 
 The API is exported as `api` at:
 
 - `http://localhost:5001/<PROJECT_ID>/us-central1/api`
+
+> Tip: `<PROJECT_ID>` is your Firebase project id (also used in `FIREBASE_PROJECT_ID`).
+
+#### 5.3 Deploy Functions (optional, for “real cloud” backend)
+
+```bash
+cd functions
+firebase deploy --only functions
+```
 
 #### API routes
 
@@ -122,7 +168,38 @@ The API is exported as `api` at:
 
 ---
 
-### 6) Run Web
+### 6) Run everything locally (recommended first run)
+
+In three terminals:
+
+**Terminal A (backend emulators):**
+
+```bash
+cd functions
+BACKEND_API_KEY=changeme GEMINI_API_KEY=changeme firebase emulators:start --only functions,firestore
+```
+
+**Terminal B (web):**
+
+```bash
+npm run web:dev
+```
+
+**Terminal C (iOS):**
+
+```bash
+cd apps/mobile/ios
+bundle install
+bundle exec pod install
+cd ..
+npm run ios
+```
+
+> If you run on a **physical iPhone**, replace `localhost` in `BACKEND_BASE_URL` with your Mac’s LAN IP (e.g. `http://192.168.1.10:5001/...`).
+
+---
+
+### 7) Run Web (standalone)
 
 ```bash
 cd apps/web
@@ -131,7 +208,7 @@ npm run dev
 
 ---
 
-### 7) Run iOS (simulator)
+### 8) Run iOS (simulator) (standalone)
 
 1) Install pods:
 
@@ -213,7 +290,7 @@ If you skip this step, the app will build but Google sign-in will fail at runtim
 
 ---
 
-### 8) Run Android (emulator)
+### 9) Run Android (emulator)
 
 ```bash
 cd apps/mobile
@@ -226,7 +303,7 @@ Android permissions were added in:
 
 ---
 
-### 9) WatermelonDB notes
+### 10) WatermelonDB notes
 
 Tables are defined in `packages/db/src/schema.ts` and include common columns:
 
@@ -239,7 +316,7 @@ All UI reads/writes WatermelonDB locally and syncs through the Functions API.
 
 ---
 
-### 10) Background tasks
+### 11) Background tasks
 
 Mobile uses `react-native-background-fetch` in:
 
@@ -255,7 +332,7 @@ Web/Android: health tracking is skipped; sync is still active.
 
 ---
 
-### 11) Security model
+### 12) Security model
 
 - All API routes require:
   - **Firebase ID token** in `Authorization: Bearer ...`
@@ -264,7 +341,7 @@ Web/Android: health tracking is skipped; sync is still active.
 
 ---
 
-### 12) Optional enhancements
+### 13) Optional enhancements
 
 - **AI review editing**: add “edit AI item → prefilled manual form”
 - **AI photo on native**: add a native image picker flow (Web already supports file picker)
