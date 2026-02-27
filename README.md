@@ -72,7 +72,7 @@ Also:
 This repo intentionally uses **different config files per runtime**:
 
 - **Mobile (iOS/Android)**: reads `config/env.local.json` at runtime (not committed)
-- **Web (Vite)**: reads `apps/web/.env.local` at dev/build time (not committed)
+- **Web (Vite)**: reads `apps/web/.env.local` at dev/build time (not committed) — **auto-generated**
 - **Functions**: reads secrets via Firebase Secret Manager in cloud, or environment variables when running emulators
 
 #### Mobile (React Native)
@@ -86,20 +86,17 @@ The mobile app injects `config/env.local.json` into `globalThis.__APP_CONFIG__` 
 
 #### Web (Vite)
 
-Create `apps/web/.env.local` (Vite only exposes vars prefixed with `VITE_`):
+The Web app uses Vite which only exposes variables prefixed with `VITE_`.
+
+To avoid duplicating config, this repo **generates** `apps/web/.env.local` from `config/env.local.json`.
+
+Run:
 
 ```bash
-VITE_BACKEND_BASE_URL=http://localhost:5001/YOUR_PROJECT_ID/us-central1/api
-VITE_BACKEND_API_KEY=changeme
-VITE_GOOGLE_WEB_CLIENT_ID=changeme
-
-VITE_FIREBASE_API_KEY=changeme
-VITE_FIREBASE_AUTH_DOMAIN=changeme
-VITE_FIREBASE_PROJECT_ID=changeme
-VITE_FIREBASE_STORAGE_BUCKET=changeme
-VITE_FIREBASE_MESSAGING_SENDER_ID=changeme
-VITE_FIREBASE_APP_ID=changeme
+npm run env:sync:web
 ```
+
+This is also run automatically by `npm run web:dev` and `npm run web:build`.
 
 ---
 
@@ -130,6 +127,8 @@ Functions expect these environment variables at runtime:
 - `BACKEND_API_KEY`: required for all API calls (`x-api-key`) — **client + server must match**
 - `GEMINI_API_KEY`: required for AI endpoints (`/ai/text`, `/ai/photo`) — **server-only**
 
+> Why keep `GEMINI_API_KEY` server-only? The mobile app loads `config/env.local.json` into its JS bundle at runtime. If you put the Gemini key there, it can leak to clients. Keep it only in Functions secrets/env vars.
+
 For **cloud deploy**, set Firebase Secrets:
 
 ```bash
@@ -143,6 +142,17 @@ For **local emulators**, you can pass them as environment variables when startin
 cd functions
 BACKEND_API_KEY=changeme GEMINI_API_KEY=changeme firebase emulators:start --only functions,firestore
 ```
+
+You can also create a local file at `functions/.env.local` (not committed) and export it in your shell before running:
+
+```bash
+set -a
+source ./env.local
+set +a
+firebase emulators:start --only functions,firestore
+```
+
+Use `functions/env.local.example` as a template.
 
 The API is exported as `api` at:
 
