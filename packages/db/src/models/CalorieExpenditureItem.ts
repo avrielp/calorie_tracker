@@ -5,13 +5,13 @@ import { TABLES } from '../constants';
 export class CalorieExpenditureItem extends Model {
   static table = TABLES.calorie_expenditure_items;
 
-  @text('userId') userId!: string;
-  @text('date') dateYmd!: string;
-  @text('name') name!: string;
-  @text('description') description?: string;
-  @field('calories') calories!: number;
-  @field('lastUpdated') lastUpdated!: number;
-  @date('updated_at') updatedAt!: Date;
+  @text('userId') declare userId: string;
+  @text('date') declare dateYmd: string;
+  @text('name') declare name: string;
+  @text('description') declare description?: string;
+  @field('calories') declare calories: number;
+  @field('lastUpdated') declare lastUpdated: number;
+  @date('updated_at') declare updatedAt: Date;
 }
 
 

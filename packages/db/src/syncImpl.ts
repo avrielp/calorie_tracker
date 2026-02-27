@@ -23,8 +23,9 @@ export async function syncNowImpl({
 
   const token = await getIdToken();
   const lastPulledAt = await readLastPulledAt(userId);
+  let newTimestamp: number | null = null;
 
-  const result = await synchronize({
+  await synchronize({
     database,
     pullChanges: async ({ lastPulledAt: lpa }) => {
       const since = lpa ?? 0;
@@ -41,7 +42,9 @@ export async function syncNowImpl({
         const text = await res.text();
         throw new Error(`pullChanges failed: ${res.status} ${text}`);
       }
-      return res.json();
+      const json = await res.json();
+      newTimestamp = typeof json?.timestamp === 'number' ? json.timestamp : null;
+      return json;
     },
     pushChanges: async ({ changes, lastPulledAt: lpa }) => {
       const res = await fetch(`${cfg.backendBaseUrl}/sync/push`, {
@@ -60,8 +63,11 @@ export async function syncNowImpl({
     },
   });
 
-  await writeLastPulledAt(userId, result.timestamp);
-  return { ...result, lastPulledAt };
+  if (newTimestamp == null) {
+    throw new Error('pullChanges response missing `timestamp`');
+  }
+  await writeLastPulledAt(userId, newTimestamp);
+  return { timestamp: newTimestamp, lastPulledAt };
 }
 
 

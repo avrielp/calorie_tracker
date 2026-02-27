@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { DatabaseProvider } from '@nozbe/watermelondb/hooks';
+import DatabaseProvider from '@nozbe/watermelondb/react/DatabaseProvider';
 import { makeDatabase } from '@calorie-tracker/db';
 
 export function DbProvider({ children }: { children: React.ReactNode }) {

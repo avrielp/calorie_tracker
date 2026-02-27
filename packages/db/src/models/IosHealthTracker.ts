@@ -5,14 +5,14 @@ import { TABLES } from '../constants';
 export class IosHealthTracker extends Model {
   static table = TABLES.ios_health_tracker;
 
-  @text('userId') userId!: string;
-  @text('date') dateYmd!: string;
-  @field('resting_calories') restingCalories!: number;
-  @field('active_calories') activeCalories!: number;
-  @field('distance_walking_and_running') distanceWalkingAndRunning!: number;
-  @field('exercise_minutes') exerciseMinutes!: number;
-  @field('lastUpdated') lastUpdated!: number;
-  @date('updated_at') updatedAt!: Date;
+  @text('userId') declare userId: string;
+  @text('date') declare dateYmd: string;
+  @field('resting_calories') declare restingCalories: number;
+  @field('active_calories') declare activeCalories: number;
+  @field('distance_walking_and_running') declare distanceWalkingAndRunning: number;
+  @field('exercise_minutes') declare exerciseMinutes: number;
+  @field('lastUpdated') declare lastUpdated: number;
+  @date('updated_at') declare updatedAt: Date;
 }
 
 

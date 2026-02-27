@@ -1,11 +1,11 @@
-### Calorie Tracker (React Native + React Native Web, **no Expo**)
+### Calorie Tracker (Expo + React Native + Web)
 
 Cross‑platform app (iOS / Android / Web) that calculates a daily caloric surplus/deficit and syncs all local WatermelonDB data through Firebase Cloud Functions + Firestore.
 
 ### Repo layout
 
-- **`apps/mobile`**: React Native CLI app (iOS/Android native projects included)
-- **`apps/web`**: Vite + React + React Native Web (runs the same shared app UI)
+- **`apps/expo`**: Expo app (iOS/Android/Web) running the shared app UI
+- **`apps/mobile`**: legacy React Native CLI app (kept for reference)
 - **`packages/core`**: shared calculations + types + runtime config loader
 - **`packages/db`**: WatermelonDB schema/models/CRUD + Watermelon sync client
 - **`packages/app`**: shared UI (Summary/Inputs/Goals + Settings) + Firebase auth + sync/background wiring
@@ -29,6 +29,44 @@ Cross‑platform app (iOS / Android / Web) that calculates a daily caloric surpl
 - **iOS**: Xcode + CocoaPods
 - **Android**: Android Studio + SDKs
 - Firebase CLI: `npm i -g firebase-tools`
+- **Java (JDK)**: required for the **Firestore emulator** (and therefore recommended for `firebase emulators:start --only functions,firestore`)
+
+#### Install Java + manage multiple versions (recommended)
+
+**macOS (Homebrew + jenv)**:
+
+```bash
+brew install jenv temurin@21 temurin@17
+```
+
+Add `jenv` to your shell (zsh):
+
+```bash
+echo 'export PATH="$HOME/.jenv/bin:$PATH"' >> ~/.zshrc
+echo 'eval "$(jenv init -)"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+Register installed JDKs and pick a default:
+
+```bash
+jenv add "$(/usr/libexec/java_home -v 21)"
+jenv add "$(/usr/libexec/java_home -v 17)"
+jenv global 21
+java -version
+```
+
+**Alternative (macOS/Linux): SDKMAN** (good if you want one tool for many Java versions):
+
+```bash
+curl -s "https://get.sdkman.io" | bash
+sdk install java 21-tem
+sdk install java 17-tem
+sdk default java 21-tem
+java -version
+```
+
+> Note: Android Studio may bundle a JDK, but Firebase emulators need `java` available on your PATH (or `JAVA_HOME` set).
 
 ---
 
@@ -69,11 +107,10 @@ Also:
 
 ### 4) Runtime configuration (local dev)
 
-This repo intentionally uses **different config files per runtime**:
+This repo uses:
 
-- **Mobile (iOS/Android)**: reads `config/env.local.json` at runtime (not committed)
-- **Web (Vite)**: reads `apps/web/.env.local` at dev/build time (not committed) — **auto-generated**
-- **Functions**: reads secrets via Firebase Secret Manager in cloud, or environment variables when running emulators
+- **Client config** (web + native): `config/env.local.json` (not committed)
+- **Functions secrets**: Firebase Secret Manager in cloud, or environment variables when running emulators
 
 #### Mobile (React Native)
 
@@ -84,19 +121,9 @@ Create:
 
 The mobile app injects `config/env.local.json` into `globalThis.__APP_CONFIG__` at startup (see `apps/mobile/App.tsx`).
 
-#### Web (Vite)
+#### Web
 
-The Web app uses Vite which only exposes variables prefixed with `VITE_`.
-
-To avoid duplicating config, this repo **generates** `apps/web/.env.local` from `config/env.local.json`.
-
-Run:
-
-```bash
-npm run env:sync:web
-```
-
-This is also run automatically by `npm run web:dev` and `npm run web:build`.
+Web is served by Expo (`expo start --web`) and uses the same `config/env.local.json` client config as native.
 
 ---
 
@@ -192,7 +219,7 @@ BACKEND_API_KEY=changeme GEMINI_API_KEY=changeme firebase emulators:start --only
 **Terminal B (web):**
 
 ```bash
-npm run web:dev
+npm run expo:web
 ```
 
 **Terminal C (iOS):**
@@ -209,16 +236,7 @@ npm run ios
 
 ---
 
-### 7) Run Web (standalone)
-
-```bash
-cd apps/web
-npm run dev
-```
-
----
-
-### 8) Run iOS (simulator) (standalone)
+### 7) Run iOS (simulator) (standalone)
 
 1) Install pods:
 
@@ -300,7 +318,7 @@ If you skip this step, the app will build but Google sign-in will fail at runtim
 
 ---
 
-### 9) Run Android (emulator)
+### 8) Run Android (emulator)
 
 ```bash
 cd apps/mobile
@@ -313,7 +331,7 @@ Android permissions were added in:
 
 ---
 
-### 10) WatermelonDB notes
+### 9) WatermelonDB notes
 
 Tables are defined in `packages/db/src/schema.ts` and include common columns:
 
@@ -326,7 +344,7 @@ All UI reads/writes WatermelonDB locally and syncs through the Functions API.
 
 ---
 
-### 11) Background tasks
+### 10) Background tasks
 
 Mobile uses `react-native-background-fetch` in:
 
@@ -342,7 +360,7 @@ Web/Android: health tracking is skipped; sync is still active.
 
 ---
 
-### 12) Security model
+### 11) Security model
 
 - All API routes require:
   - **Firebase ID token** in `Authorization: Bearer ...`
@@ -351,7 +369,7 @@ Web/Android: health tracking is skipped; sync is still active.
 
 ---
 
-### 13) Optional enhancements
+### 12) Optional enhancements
 
 - **AI review editing**: add “edit AI item → prefilled manual form”
 - **AI photo on native**: add a native image picker flow (Web already supports file picker)

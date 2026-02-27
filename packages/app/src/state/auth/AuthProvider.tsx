@@ -30,6 +30,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Safety net: if Firebase Auth never calls back (misconfig / blocked storage),
+    // don't leave the UI blank forever.
+    if (isReady) return;
+    const t = setTimeout(() => {
+      // eslint-disable-next-line no-console
+      console.warn('[auth] onAuthStateChanged did not fire; continuing with unauthenticated UI');
+      setIsReady(true);
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [isReady]);
+
+  useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (!user) {
