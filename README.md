@@ -187,6 +187,14 @@ Then start emulators from the repo root:
 firebase emulators:start --only functions,firestore
 ```
 
+**Also supported**: `functions/env.local` is auto-loaded when you run:
+
+```bash
+npm run functions:serve
+```
+
+This exports variables in `functions/env.local` into the emulator process environment.
+
 **Alternative**: pass them as environment variables when starting emulators:
 
 ```bash

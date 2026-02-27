@@ -3,15 +3,22 @@ import admin from 'firebase-admin';
 import { log } from './logger';
 import { BACKEND_API_KEY } from './secrets';
 
+const isEmulator = Boolean(process.env.FUNCTIONS_EMULATOR || process.env.FIREBASE_EMULATOR_HUB);
+
 export function requireApiKey(req: Request, res: Response, next: NextFunction) {
-  const expected = BACKEND_API_KEY.value();
+  const expected =
+    (isEmulator && process.env.BACKEND_API_KEY) || BACKEND_API_KEY.value() || process.env.BACKEND_API_KEY || '';
   if (!expected) {
     log.warn('[auth] BACKEND_API_KEY not set; rejecting');
     return res.status(500).json({ error: 'Server misconfigured: BACKEND_API_KEY not set' });
   }
 
   const got = req.header('x-api-key');
-  if (!got || got !== expected) return res.status(401).json({ error: 'Invalid API key' });
+  if (!got || got !== expected) {
+    // Don't log the actual key value.
+    log.warn('[auth] invalid api key', { hasKey: Boolean(got), gotLen: got?.length ?? 0, expectedLen: expected.length });
+    return res.status(401).json({ error: 'Invalid API key' });
+  }
   return next();
 }
 

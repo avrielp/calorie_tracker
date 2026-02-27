@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "serve": "firebase emulators:start --only functions,firestore",
+    "serve": "bash -lc 'set -a; [ -f functions/env.local ] && source functions/env.local; set +a; firebase emulators:start --only functions,firestore'",
     "deploy": "firebase deploy --only functions"
   },
   "dependencies": {

@@ -19,7 +19,8 @@ const AiResponseSchema = z.object({
 const PUBLIC_AI_ERROR_MESSAGE = 'AI engine failed for an unexpected reason, please try again.';
 
 function getClient() {
-  const key = GEMINI_API_KEY.value();
+  const isEmulator = Boolean(process.env.FUNCTIONS_EMULATOR || process.env.FIREBASE_EMULATOR_HUB);
+  const key = (isEmulator && process.env.GEMINI_API_KEY) || GEMINI_API_KEY.value() || process.env.GEMINI_API_KEY || '';
   if (!key) throw new Error('GEMINI_API_KEY not set');
   return new GoogleGenerativeAI(key);
 }
